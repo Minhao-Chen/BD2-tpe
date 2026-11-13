@@ -20,6 +20,10 @@ services:
     image: mongo:7.0
     container_name: farmared-mongo
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ulimits:
+      nofile:
+        soft: 64000
+        hard: 64000
     volumes:
       - mongo-data:/data/db
     restart: unless-stopped
