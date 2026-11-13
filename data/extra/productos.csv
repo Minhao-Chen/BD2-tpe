@@ -1,0 +1,11 @@
+id_producto,nombre,principio_activo,categoria,presentacion,condicion_venta,precio_unit,id_proveedor,activo
+PRD014,Diclofenac 75mg x15,Diclofenac,Antiinflamatorio,Comprimidos x15,Venta libre,2900,PRV006,True
+PRD015,Enalapril 10mg x30,Enalapril,Antihipertensivo,Comprimidos x30,Bajo receta,4300,PRV008,True
+PRD016,Clonazepam 2mg x30,Clonazepam,Ansiolítico,Comprimidos x30,Bajo receta archivada,6800,PRV007,True
+PRD017,Cetirizina 10mg x10,Cetirizina,Antihistamínico,Comprimidos x10,Venta libre,2600,PRV010,True
+PRD018,Azitromicina 500mg x3,Azitromicina,Antibiótico,Comprimidos x3,Bajo receta,8400,PRV008,True
+PRD019,Insulina NPH 100UI/ml,Insulina humana,Antidiabético,Vial 10 ml,Bajo receta,15500,PRV012,True
+PRD020,Vitamina C 1g x20,Ácido ascórbico,Suplemento,Comprimidos efervescentes x20,Venta libre,3100,PRV010,True
+PRD021,Amlodipina 5mg x30,Amlodipina,Antihipertensivo,Comprimidos x30,Bajo receta,3700,PRV011,True
+PRD022,Termómetro digital,No aplica,Accesorio,Unidad,Venta libre,4999,PRV009,True
+PRD023,Jarabe antitusivo 120ml,Dextrometorfano,Antitusivo,Jarabe 120 ml,Venta libre,3300,PRV014,False

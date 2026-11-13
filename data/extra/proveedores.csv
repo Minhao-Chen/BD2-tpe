@@ -1,0 +1,11 @@
+id_proveedor,razon_social,cuit,tipo,ciudad,provincia,telefono,activo
+PRV006,Laboratorio Cuyano S.A.,30-71456789-2,Laboratorio,Mendoza,Mendoza,2614501100,True
+PRV007,Pharma Delta S.R.L.,30-70876543-4,Droguería,Paraná,Entre Ríos,3434602200,True
+PRV008,Laboratorios del Plata S.A.,30-71654321-8,Laboratorio,Buenos Aires,Buenos Aires,1143703300,True
+PRV009,MediSur Distribuciones S.A.,30-70555666-1,Droguería,Bahía Blanca,Buenos Aires,2914804400,True
+PRV010,NovaFarma Argentina S.A.,30-71222333-6,Laboratorio,Pilar,Buenos Aires,2304905500,True
+PRV011,Droguería Mediterránea S.R.L.,30-70444555-0,Droguería,Córdoba,Córdoba,3515006600,True
+PRV012,BioAndes Laboratorios S.A.,30-71777888-3,Laboratorio,San Juan,San Juan,2645107700,True
+PRV013,Salud Litoral Distribuidora S.A.,30-70999000-7,Droguería,Rosario,Santa Fe,3415208800,True
+PRV014,Laboratorio Patagónico S.A.,30-71333444-9,Laboratorio,Neuquén,Neuquén,2995309900,False
+PRV015,Química Austral S.A.,30-71111999-5,Laboratorio,La Plata,Buenos Aires,2215400011,True
