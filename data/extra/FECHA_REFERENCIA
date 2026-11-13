@@ -1,0 +1,4 @@
+# Fecha que los registros adicionales de esta carpeta toman como "hoy".
+# Al cargar, a cada fecha de los CSV adicionales se le suma (fecha del sistema - esta fecha).
+# Ejemplo: una venta escrita con esta misma fecha siempre queda cargada con fecha de hoy.
+2026-11-13
