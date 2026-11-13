@@ -34,7 +34,7 @@ Motor:
     transacción se reintenta con los datos nuevos.
 
 Uso:
-    make consulta Q=q15 ARGS="V017"
+    make consulta Q=q15 ARGS="V011"   (rechazo: está Pendiente; ver README)
 """
 
 import argparse

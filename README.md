@@ -52,13 +52,37 @@ de `data/extra/FECHA_REFERENCIA` y al cargar se les suma la diferencia con la fe
 Así los registros "recientes" siguen siéndolo cualquier día que se cargue. Los CSV originales no se
 tocan. `make cargar ARGS="--sin-desplazar"` carga las fechas tal cual están escritas.
 
+### Registros adicionales (`data/extra/`)
+
+Diez registros propios por colección. Cada uno cubre un caso borde de las consultas (fechas
+relativas a `FECHA_REFERENCIA`, que llamamos "hoy"):
+
+| Consulta | Caso que cubren |
+|---|---|
+| q02 | Ventas Pendientes nuevas (V024, V033) |
+| q03 | C009 tiene receta y venta el mismo día (la receta va primero) |
+| q04 | C009 con 3 recetas, C010 con 2, C011 con 1 (no aparece) |
+| q05 | Venta a 60 días justos (cuenta) y a 61 (no); Anulada (no cuenta); F013 activo sin ventas (0); F014 inactivo con ventas recientes (no aparece) |
+| q06 | Próxima dispensa ayer (RC010, aparece), hoy (RC011) y mañana (RC013), que no aparecen |
+| q07 | Pendiente de 20 unidades (V033) y Anulada de 30 (V034) que no cuentan |
+| q08 | Lotes con 49 (aparece) y 50 unidades (no), 0 unidades, vencido con stock, vence en 7 días, producto discontinuado |
+| q09 | Totales de 4.999 (aparece) y 5.000 (no); Anulada de 2.600 (no) |
+| q10 | S012 dada de baja con ventas de F014 (inactivo); S013 sin ventas |
+| q11 | Ventas Completadas con fecha "hoy" en S007, S008 y S009, más una Pendiente y una Anulada que no suman |
+| q12 | Última venta hace 1 año justo (C012, no aparece) y 1 año + 1 día (C013); C014 sin ventas; C015 inactivo sin ventas |
+| q14/q15 | En S006, PRD015 tiene un lote vencido con stock (L019), uno chico (L020) y uno grande (L021); PRD019 sin stock (L024); RC016 con la última dispensa pendiente |
+
+Además suman un proveedor sin productos (PRV015), un proveedor inactivo (PRV014) y una segunda
+droguería (S015).
+
 ## Ejecutar las consultas
 
 ```bash
 make consulta Q=<código> ARGS="<argumentos>"
 ```
 
-Imprime el resultado como JSON. Sin `Q` lista las consultas implementadas. Los rechazos por
+Imprime el resultado como JSON. Sin `Q` (o con un código desconocido) lista las consultas
+implementadas y termina con código 2, por eso `make` muestra además `Error 2`. Los rechazos por
 validación se informan como `RECHAZADO: <motivo>` y código de salida 1.
 
 | Consulta | Qué hace | Motor | Ejemplo |
@@ -75,12 +99,36 @@ validación se informan como `RECHAZADO: <motivo>` y código de salida 1.
 | q10 | Clientes atendidos en una sucursal | MongoDB | `make consulta Q=q10 ARGS="S001"` |
 | q11 | Ingresos por farmacéutico del mes actual | Redis + MongoDB | `make consulta Q=q11` |
 | q12 | Clientes sin ventas en el último año | MongoDB | `make consulta Q=q12` |
+| q13 | ABM de clientes | MongoDB | *pendiente* |
 | q14 | Registra una venta Completada (valida, actualiza receta, descuenta stock) | MongoDB + Redis | `make consulta Q=q14 ARGS="--cliente C007 --farmaceutico F006 --receta RC006 --item PRD007:1 --medio-pago Débito"` |
-| q15 | Descuenta el stock de una venta registrada (FEFO) | MongoDB | `make consulta Q=q15 ARGS="V017"` |
+| q15 | Descuenta el stock de una venta registrada (FEFO) | MongoDB | `make consulta Q=q15 ARGS="V011"` (rechazo: está Pendiente) |
 
 En q14, `--item PRODUCTO:CANTIDAD` se puede repetir y `--receta` es opcional (obligatoria si algún
 producto es bajo receta). q14 ya llama a q15 dentro de la misma transacción: q15 por separado solo
-aplica a una venta Completada que todavía no tenga el stock descontado.
+aplica a una venta Completada que todavía no tenga el stock descontado. Después de `make cargar`
+no hay ninguna (las Completadas del historial ya figuran descontadas en `stock_lotes.csv`), así que
+desde la CLI q15 solo muestra sus rechazos: `V011` (Pendiente), `V015` (Anulada), `V003` (ya
+descontada) o `V999` (no existe). El descuento FEFO se ve a través de q14.
+
+### Ejemplos con los registros adicionales
+
+Cada uno parte de `make cargar`. Los que registran una venta cambian los datos: volver a cargar
+para repetirlos.
+
+```bash
+# Venta OK con FEFO: saltea el lote vencido L019, consume L020 (3) y L021 (2); RC016 pasa a Completada
+make consulta Q=q14 ARGS='--cliente C017 --farmaceutico F008 --receta RC016 --item PRD015:5 --medio-pago "Obra social"'
+# Rechazos (no modifican nada)
+make consulta Q=q14 ARGS="--cliente C011 --farmaceutico F008 --receta RC015 --item PRD019:1 --medio-pago Débito"  # stock insuficiente
+make consulta Q=q14 ARGS="--cliente C009 --farmaceutico F008 --receta RC012 --item PRD015:1 --medio-pago Débito"  # receta Vencida
+make consulta Q=q14 ARGS="--cliente C015 --farmaceutico F008 --item PRD014:1 --medio-pago Efectivo"               # cliente dado de baja
+make consulta Q=q14 ARGS="--cliente C018 --farmaceutico F008 --item PRD023:1 --medio-pago Efectivo"               # producto discontinuado
+make consulta Q=q14 ARGS="--cliente C018 --farmaceutico F008 --item PRD018:1 --medio-pago Efectivo"               # falta receta
+# Lecturas con casos borde
+make consulta Q=q03 ARGS="C009"   # receta y venta el mismo día: la receta va primero
+make consulta Q=q10 ARGS="S012"   # sucursal dada de baja, ventas de un farmacéutico inactivo
+make consulta Q=q10 ARGS="S013"   # sucursal sin ventas: []
+```
 
 Cada consulta vive en su propio módulo de `src/farmared/consultas/`, con su documentación
 (propósito, parámetros, retorno y motor) al principio del archivo.
@@ -137,6 +185,4 @@ tests/                  tests
 docker-compose.yml
 Makefile
 requirements.txt
-justificaciones.txt     decisiones de diseño
-proximos_pasos.txt      trabajo pendiente
 ```
