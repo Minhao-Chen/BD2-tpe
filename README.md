@@ -145,11 +145,12 @@ make test
 Corren contra el MongoDB y el Redis del entorno, pero en la base `farmared_test` y la db 15 de Redis:
 no tocan los datos cargados con `make cargar`.
 
-## Conectarse desde la terminal
+## Acceder a los datos
+
+Para navegar las colecciones de MongoDB se puede usar la extensión de MongoDB de VS Code (se
+instala con el devcontainer) con la URI `mongodb://mongo:27017/?replicaSet=rs0`.
 
 ```bash
-make mongo-shell          # mongosh sobre la base farmared
-make redis-cli            # redis-cli
 make reconstruir-vistas   # rearma las vistas de Redis desde MongoDB
 ```
 

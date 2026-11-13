@@ -1,4 +1,4 @@
-.PHONY: verificar cargar reconstruir-vistas consulta demo test mongo-shell redis-cli
+.PHONY: verificar cargar reconstruir-vistas consulta demo test
 
 PYTHON ?= python
 export PYTHONPATH := src
@@ -16,7 +16,7 @@ cargar:
 reconstruir-vistas:
 	$(PYTHON) -m farmared.vistas
 
-## Ejecuta una consulta: make consulta Q=q05   |   make consulta Q=q15 ARGS="V017"
+## Ejecuta una consulta: make consulta Q=q05   |   make consulta Q=q03 ARGS="C001"
 consulta:
 	$(PYTHON) -m farmared.consultas $(Q) $(ARGS)
 
@@ -27,11 +27,3 @@ demo:
 ## Corre los tests (usan la base farmared_test y la db 15 de Redis)
 test:
 	$(PYTHON) -m pytest
-
-## Abre mongosh dentro del contenedor de Mongo
-mongo-shell:
-	docker exec -it farmared-mongo mongosh farmared
-
-## Abre redis-cli dentro del contenedor de Redis
-redis-cli:
-	docker exec -it farmared-redis redis-cli
