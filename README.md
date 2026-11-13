@@ -81,9 +81,9 @@ droguería (S015).
 make consulta Q=<código> ARGS="<argumentos>"
 ```
 
-Imprime el resultado como JSON. Sin `Q` (o con un código desconocido) lista las consultas
-implementadas y termina con código 2, por eso `make` muestra además `Error 2`. Los rechazos por
-validación se informan como `RECHAZADO: <motivo>` y código de salida 1.
+Imprime el resultado como JSON. Sin `Q` lista las consultas implementadas; con un código
+desconocido también las lista, pero termina con error. Los rechazos por validación se informan
+como `RECHAZADO: <motivo>` y código de salida 1.
 
 | Consulta | Qué hace | Motor | Ejemplo |
 |---|---|---|---|

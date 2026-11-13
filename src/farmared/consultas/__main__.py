@@ -28,11 +28,15 @@ def _modulos() -> dict[str, str]:
 def main(argv: list[str]) -> int:
     modulos = _modulos()
     if not argv or argv[0].lower() not in modulos:
-        print("Uso: python -m farmared.consultas <consulta> [argumentos]", file=sys.stderr)
-        print("Consultas implementadas:", file=sys.stderr)
+        # Sin argumentos es un pedido de ayuda (código 0); un código desconocido es un error (2).
+        salida = sys.stdout if not argv else sys.stderr
+        if argv:
+            print(f"Consulta desconocida: {argv[0]}", file=salida)
+        print("Uso: python -m farmared.consultas <consulta> [argumentos]", file=salida)
+        print("Consultas implementadas:", file=salida)
         for codigo, nombre in sorted(modulos.items()):
-            print(f"  {codigo}  ({nombre})", file=sys.stderr)
-        return 2
+            print(f"  {codigo}  ({nombre})", file=salida)
+        return 0 if not argv else 2
     modulo = importlib.import_module(f"farmared.consultas.{modulos[argv[0].lower()]}")
     try:
         resultado = modulo.cli(argv[1:])
