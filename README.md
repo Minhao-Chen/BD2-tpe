@@ -7,8 +7,6 @@ Backoffice de una red de farmacias con persistencia políglota **MongoDB + Redis
 - **Redis** (clave-valor) es el modelo de lectura: catálogo con proveedor, ranking de productos e
   ingresos por farmacéutico y mes. Se reconstruye desde MongoDB.
 
-Las decisiones de diseño y su justificación están en [justificaciones.txt](justificaciones.txt).
-Lo que falta hacer está en [proximos_pasos.txt](proximos_pasos.txt).
 
 ## Abrir en GitHub Codespaces
 
@@ -66,7 +64,17 @@ validación se informan como `RECHAZADO: <motivo>` y código de salida 1.
 | Consulta | Qué hace | Motor | Ejemplo |
 |---|---|---|---|
 | q01 | Productos activos con los datos de su proveedor | Redis | `make consulta Q=q01` |
+| q02 | Ventas pendientes con farmacéutico y sucursal | MongoDB | `make consulta Q=q02` |
+| q03 | Historial completo de un cliente | MongoDB | `make consulta Q=q03 ARGS="C001"` |
+| q04 | Clientes con más de una receta | MongoDB | `make consulta Q=q04` |
 | q05 | Farmacéuticos activos y ventas de los últimos 60 días | MongoDB | `make consulta Q=q05` |
+| q06 | Recetas con próxima dispensa vencida | MongoDB | `make consulta Q=q06` |
+| q07 | Top 5 de productos más vendidos | Redis | `make consulta Q=q07` |
+| q08 | Lotes con menos de 50 unidades | MongoDB | `make consulta Q=q08` |
+| q09 | Ventas libres menores a $5.000 no anuladas | MongoDB | `make consulta Q=q09` |
+| q10 | Clientes atendidos en una sucursal | MongoDB | `make consulta Q=q10 ARGS="S001"` |
+| q11 | Ingresos por farmacéutico del mes actual | Redis + MongoDB | `make consulta Q=q11` |
+| q12 | Clientes sin ventas en el último año | MongoDB | `make consulta Q=q12` |
 | q14 | Registra una venta Completada (valida, actualiza receta, descuenta stock) | MongoDB + Redis | `make consulta Q=q14 ARGS="--cliente C007 --farmaceutico F006 --receta RC006 --item PRD007:1 --medio-pago Débito"` |
 | q15 | Descuenta el stock de una venta registrada (FEFO) | MongoDB | `make consulta Q=q15 ARGS="V017"` |
 
