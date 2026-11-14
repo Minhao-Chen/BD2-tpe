@@ -99,9 +99,27 @@ como `RECHAZADO: <motivo>` y código de salida 1.
 | q10 | Clientes atendidos en una sucursal | MongoDB | `make consulta Q=q10 ARGS="S001"` |
 | q11 | Ingresos por farmacéutico del mes actual | Redis + MongoDB | `make consulta Q=q11` |
 | q12 | Clientes sin ventas en el último año | MongoDB | `make consulta Q=q12` |
-| q13 | ABM de clientes | MongoDB | *pendiente* |
+| q13 | ABM de clientes: alta (DNI único), modificación de contacto y cobertura, baja lógica | MongoDB | `make consulta Q=q13 ARGS="baja C004"` |
 | q14 | Registra una venta Completada (valida, actualiza receta, descuenta stock) | MongoDB + Redis | `make consulta Q=q14 ARGS="--cliente C007 --farmaceutico F006 --receta RC006 --item PRD007:1 --medio-pago Débito"` |
 | q15 | Descuenta el stock de una venta registrada (FEFO) | MongoDB | `make consulta Q=q15 ARGS="V011"` (rechazo: está Pendiente) |
+
+q13 tiene tres operaciones. Cada una imprime el cliente `antes` y `despues`:
+
+```bash
+make consulta Q=q13 ARGS="alta --nombre Ana --apellido Paz --dni 40111222 --email ana.p@gmail.com --telefono 3415001122 --ciudad Rosario --provincia 'Santa Fe' --obra-social OSDE --nro-afiliado OS-777001"
+make consulta Q=q13 ARGS="modificar C001 --email lucia.nueva@gmail.com --telefono 1140001111"
+make consulta Q=q13 ARGS="modificar C001 --obra-social PAMI --nro-afiliado PA-100200"
+make consulta Q=q13 ARGS="modificar C001 --obra-social 'Sin cobertura'"   # vacía el nro de afiliado
+make consulta Q=q13 ARGS="baja C004"
+# Rechazos
+make consulta Q=q13 ARGS="alta --nombre Ana --apellido Paz --dni 31245678 --email a@gmail.com --telefono 1 --ciudad X --provincia Y --obra-social 'Sin cobertura'"  # DNI de C001
+make consulta Q=q13 ARGS="modificar C001 --obra-social PAMI"   # falta el nro de afiliado
+make consulta Q=q13 ARGS="baja C008"                           # ya está dado de baja
+```
+
+La regla de cobertura es la misma que usa la carga: `nro_afiliado` vacío si y solo si es
+'Sin cobertura'. Un DNI de un cliente dado de baja tampoco se puede reutilizar, porque el documento
+sigue existiendo.
 
 En q14, `--item PRODUCTO:CANTIDAD` se puede repetir y `--receta` es opcional (obligatoria si algún
 producto es bajo receta). q14 ya llama a q15 dentro de la misma transacción: q15 por separado solo
