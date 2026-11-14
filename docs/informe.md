@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Integrantes | Joaquín Abraldes · Mateo Andraca · Minhao Chen · *[completar]* |
+| Integrantes | Joaquín Abraldes · Mateo Andraca · Minhao Chen · Santiago Griscan |
 | Repositorio | https://github.com/Minhao-Chen/BD2-tpe |
 | Motores | MongoDB 7 (documentos) + Redis 7 (clave-valor) |
 | Lenguaje | Python 3.12 (pymongo, redis-py) |
@@ -204,9 +204,11 @@ Ninguno de los dos motores garantiza integridad referencial. Se resuelve en tres
 2. **En el motor.** Los validadores `$jsonSchema` y los índices únicos rechazan documentos mal
    formados o duplicados, aunque se escriba por fuera de la aplicación.
 3. **En los servicios de escritura** (q13, q14, q15). Antes de escribir, cada servicio verifica
-   las referencias y su estado dentro de la misma transacción: que existan, que estén activas y
-   que la receta sea del mismo cliente. Si algo falla se lanza `ErrorValidacion`, la transacción
-   aborta y no queda ningún cambio.
+   las referencias y su estado. Si algo falla se lanza `ErrorValidacion` y no queda ningún cambio.
+   - q14 y q15 lo hacen dentro de la misma transacción: que las entidades existan, que estén
+     activas y que la receta sea del mismo cliente. Si algo falla, la transacción aborta.
+   - q13 escribe un único documento (atómico) y valida antes de escribir: DNI único, cobertura
+     coherente y cliente activo. El índice único `{dni}` cubre las altas simultáneas.
 
 ---
 
@@ -595,11 +597,111 @@ C012, con su última venta el 2025-11-13 (un año justo), no aparece.
 
 ### q13 — ABM de clientes
 
-> **[Pendiente: completar cuando esté implementada.]**
-> Incluir alta validando DNI único (índice único `{dni}` + validación previa), modificación de
-> contacto y cobertura (subdocumentos `contacto` y `cobertura`) y baja lógica (`activo = false`).
-> Mostrar el estado antes y después de cada operación y al menos un rechazo (por ejemplo, alta
-> con el DNI `31245678`, que ya pertenece a C001).
+- **Operaciones:** tres subcomandos, cada uno con su función.
+  - `alta`: `alta_cliente(nombre, apellido, dni, email, telefono, ciudad, provincia,
+    obra_social, nro_afiliado=None)`.
+  - `modificar`: `modificar_cliente(id_cliente, email, telefono, obra_social, nro_afiliado)`.
+    Solo cambia los campos que se informan.
+  - `baja`: `baja_cliente(id_cliente)`.
+- **Motor:** MongoDB, colección `clientes`.
+- **Retorno:** `{antes, despues}` con el documento del cliente antes y después de la operación.
+  En el alta, `antes` es `null`.
+
+**Validaciones.** Cualquiera que falle lanza `ErrorValidacion` y no escribe nada.
+
+- Los textos son obligatorios, el email debe tener `@` y el DNI debe tener 7 u 8 dígitos sin
+  puntos.
+- La obra social debe ser uno de los valores del enunciado.
+- **Cobertura coherente.** Es la misma regla que aplica la carga: `nro_afiliado` está vacío si y
+  solo si el cliente es 'Sin cobertura'.
+  - Si se cambia la obra social, hay que informar el número de afiliado nuevo.
+  - Pasar a 'Sin cobertura' vacía el número.
+  - Si solo se informa el número, se conserva la obra social actual.
+- **Alta:** el DNI no puede estar registrado. Tampoco puede ser el de un cliente dado de baja: con
+  la baja lógica el documento sigue existiendo y el DNI no se reutiliza.
+- **Modificación y baja:** el cliente debe existir y estar activo.
+
+**Consistencia.** Cada operación escribe un solo documento, y en MongoDB una escritura sobre un
+documento es atómica. Por eso, a diferencia de q14, no hace falta una transacción.
+
+- **DNI único en dos niveles.**
+  - Antes de insertar se busca el DNI, para dar un mensaje claro que indica a qué cliente
+    pertenece.
+  - El índice único `{dni}` es la garantía real. Si dos altas con el mismo DNI pasan la consulta
+    a la vez, la segunda choca contra el índice (`DuplicateKeyError`) y se rechaza igual. El test
+    `test_dos_altas_simultaneas_con_el_mismo_dni` lo verifica.
+- **Id nuevo.** Sale del contador atómico `contadores.clientes` (C019, C020, …).
+- **Modificación y baja** usan `find_one_and_update` con el filtro `{_id, activo: true}`. Si otra
+  operación dio de baja al cliente entre la lectura y la escritura, no se modifica nada.
+- **Baja lógica.** Solo cambia `activo` a `false`. Las ventas y recetas del cliente lo siguen
+  referenciando, y q03, q10 y q12 lo siguen mostrando. q14 ya no le registra ventas.
+
+```python
+# Alta
+if db.clientes.find_one({"dni": dni}) is not None:
+    raise ErrorValidacion(f"ya existe un cliente con DNI {dni} …")
+cliente = {"_id": reservar_ids(db, "clientes")[0], …, "activo": True}
+try:
+    db.clientes.insert_one(cliente)
+except DuplicateKeyError:                      # alta simultánea con el mismo DNI
+    raise ErrorValidacion(f"ya existe un cliente con DNI {dni} …")
+```
+
+```javascript
+// Modificación de contacto y cobertura (solo los campos informados)
+db.clientes.findOneAndUpdate(
+  { _id: "C001", activo: true },
+  { $set: { "contacto.email": "lucia.nueva@gmail.com", "contacto.telefono": "1140001111" } },
+  { returnDocument: "after" })
+
+// Baja lógica
+db.clientes.findOneAndUpdate({ _id: "C014", activo: true }, { $set: { activo: false } },
+                             { returnDocument: "after" })
+```
+
+**Estado antes y después:**
+
+```bash
+make consulta Q=q13 ARGS="alta --nombre Ana --apellido Paz --dni 40111222 --email ana.p@gmail.com --telefono 3415001122 --ciudad Rosario --provincia 'Santa Fe' --obra-social OSDE --nro-afiliado OS-777001"
+make consulta Q=q13 ARGS="modificar C001 --email lucia.nueva@gmail.com --telefono 1140001111"
+make consulta Q=q13 ARGS="modificar C011 --obra-social IOMA --nro-afiliado IO-778899"
+make consulta Q=q13 ARGS="modificar C001 --obra-social 'Sin cobertura'"
+make consulta Q=q13 ARGS="baja C014"
+```
+
+| Operación | Antes | Después |
+|---|---|---|
+| Alta | 18 clientes; no hay ninguno con DNI 40111222 | 19 clientes; nuevo **C019** Ana Paz · OSDE OS-777001 · activo |
+| Modificar contacto de C001 | lucia.f@gmail.com · 1145112233 | lucia.nueva@gmail.com · 1140001111 (cobertura sin cambios) |
+| Modificar cobertura de C011 | Sin cobertura · afiliado vacío | IOMA · IO-778899 |
+| C001 pasa a 'Sin cobertura' | OSDE · OS-310045 | Sin cobertura · afiliado vacío |
+| Baja de C014 | activo = true | activo = **false**; el documento y el resto de sus datos se conservan |
+
+Documento devuelto por el alta:
+
+```json
+{ "antes": null,
+  "despues": { "_id": "C019", "nombre": "Ana", "apellido": "Paz", "dni": "40111222",
+               "contacto": { "email": "ana.p@gmail.com", "telefono": "3415001122" },
+               "domicilio": { "ciudad": "Rosario", "provincia": "Santa Fe" },
+               "cobertura": { "obra_social": "OSDE", "nro_afiliado": "OS-777001" },
+               "activo": true } }
+```
+
+Después de la baja, C014 sigue apareciendo en q12 con `activo: false`, y una venta a su nombre se
+rechaza:
+`make consulta Q=q14 ARGS="--cliente C014 --farmaceutico F008 --item PRD014:1 --medio-pago Efectivo"`
+→ `RECHAZADO: el cliente C014 está dado de baja`.
+
+**Rechazos por validación.** Ninguno modifica datos:
+
+| Comando (`ARGS`) | Resultado |
+|---|---|
+| `alta … --dni 31245678 …` | `ya existe un cliente con DNI 31245678 (cliente C001)` |
+| `alta … --dni 25678901 …` | `ya existe un cliente con DNI 25678901 (cliente C008, dado de baja)` |
+| `modificar C001 --obra-social PAMI` | `falta el número de afiliado de PAMI` |
+| `modificar C015 --email x@gmail.com` | `el cliente C015 está dado de baja` |
+| `baja C014` (por segunda vez) | `el cliente C014 está dado de baja` |
 
 ### q14 — Registro de una nueva venta Completada
 
@@ -763,11 +865,15 @@ RECHAZADO: stock vigente insuficiente: PRD019 (pedido 1, disponible 0)
 
 ## 8. Pruebas
 
-`make test` corre 101 tests (pytest) contra el MongoDB y el Redis reales del entorno, en una base
+`make test` corre 134 tests (pytest) contra el MongoDB y el Redis reales del entorno, en una base
 (`farmared_test`) y una db de Redis (15) separadas, así no tocan los datos de trabajo. Cubren:
 
 - la carga: idempotencia, rechazo de CSV inválidos y desplazamiento de fechas;
 - los resultados de las consultas de lectura contra valores calculados a mano;
+- q13 (`tests/test_clientes.py`, 33 tests): alta, rechazo por DNI duplicado (también el de un
+  cliente dado de baja), dos altas simultáneas con el mismo DNI, modificación de contacto y de
+  cobertura, baja lógica y rechazos por datos inválidos, siempre verificando que un rechazo no
+  modifique nada;
 - los casos válidos y los rechazos de q14 y q15;
 - la atomicidad ante falta de stock;
 - la concurrencia de dos ventas sobre el mismo lote;
@@ -830,6 +936,7 @@ make cargar                             # CSV originales + adicionales
 make consulta                           # lista las consultas disponibles
 make consulta Q=q05                     # ejecuta una consulta
 make consulta Q=q03 ARGS="C009"         # consulta con parámetro
+make consulta Q=q13 ARGS="baja C014"    # servicio con subcomando (alta / modificar / baja)
 make demo                               # antes / después de q14 + q15
 make test                               # tests
 ```
